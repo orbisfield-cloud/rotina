@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Suplemento {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  dose      String
+  horario   String
+  notas     String?
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now())
+  registros RegistroSuplemento[]
+}
+
+model RegistroSuplemento {
+  id           Int        @id @default(autoincrement())
+  suplementoId Int
+  suplemento   Suplemento @relation(fields: [suplementoId], references: [id])
+  data         DateTime   @db.Date
+  tomado       Boolean    @default(false)
+  criadoEm     DateTime   @default(now())
+
+  @@unique([suplementoId, data])
+  @@index([data])
+}
+
+model Treino {
+  id          Int      @id @default(autoincrement())
+  data        DateTime @db.Date
+  tipo        String
+  duracao     Int
+  intensidade Int?
+  notas       String?
+  criadoEm    DateTime @default(now())
+
+  @@index([data])
+}
+
+model MedidaCorporal {
+  id                Int      @id @default(autoincrement())
+  data              DateTime @db.Date
+  peso              Float
+  massaMuscular     Float?
+  gorduraSubcutanea Float?
+  fonte             String
+  notas             String?
+  pessoa            String   @default("filipe")
+  criadoEm          DateTime @default(now())
+
+  @@index([pessoa, data])
+}
