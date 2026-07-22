@@ -339,7 +339,7 @@ export function FinancialManager() {
       {/* filtro + gerenciar */}
       <div className="flex items-center gap-2">
         <div className="flex-1">
-          <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+          <Select value={filtroCategoria} onValueChange={v => v != null && setFiltroCategoria(v)}>
             <SelectTrigger className="bg-secondary border-border text-sm">
               <SelectValue placeholder="Todas as categorias" />
             </SelectTrigger>
