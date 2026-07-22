@@ -136,6 +136,13 @@ model FinancialConfig {
   cardLimit Float  @default(0)
 }
 
+model FinancialCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  icon      String?
+  createdAt DateTime @default(now())
+}
+
 // ==========================================
 // GRADUAÇÃO
 // ==========================================

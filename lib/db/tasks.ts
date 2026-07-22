@@ -20,6 +20,19 @@ export async function reentradas() {
   })
 }
 
+export async function tarefasAtrasadas() {
+  const brasilia = new Date(Date.now() - 3 * 60 * 60 * 1000)
+  const hoje = new Date(Date.UTC(brasilia.getUTCFullYear(), brasilia.getUTCMonth(), brasilia.getUTCDate()))
+  return prisma.task.findMany({
+    where: { done: false, dueDate: { lt: hoje } },
+    include: {
+      system: { select: { name: true, color: true, icon: true } },
+      folder: { select: { name: true } },
+    },
+    orderBy: { dueDate: "asc" },
+  })
+}
+
 export async function criarTarefa(data: {
   title: string
   description?: string | null

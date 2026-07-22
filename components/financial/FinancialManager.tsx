@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Pencil, Trash2, TrendingUp, TrendingDown, CreditCard } from "lucide-react"
+import { Pencil, Trash2, TrendingUp, TrendingDown, CreditCard, Tags, Check, X } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -33,6 +33,12 @@ interface Config {
   cardLimit: number
 }
 
+interface Categoria {
+  id: string
+  name: string
+  icon: string | null
+}
+
 const METHOD_LABELS: Record<string, string> = {
   card: "💳 Cartão",
   cash: "💵 Dinheiro",
@@ -46,10 +52,12 @@ function fmt(v: number) {
 function EntradaForm({
   tipo,
   inicial,
+  categorias,
   onSalvar,
 }: {
   tipo: "income" | "expense"
   inicial?: Entrada
+  categorias: Categoria[]
   onSalvar: (d: Record<string, unknown>) => Promise<void>
 }) {
   const [date, setDate] = useState(
@@ -109,7 +117,15 @@ function EntradaForm({
       </div>
       <div className="space-y-1.5">
         <Label className="text-xs">Categoria</Label>
-        <Input value={category} onChange={e => setCategory(e.target.value)} placeholder="ex: alimentação, freela..." className="bg-secondary border-border" />
+        <Select value={category} onValueChange={v => setCategory(v === "_none" ? "" : v)}>
+          <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Sem categoria" /></SelectTrigger>
+          <SelectContent className="bg-card border-border">
+            <SelectItem value="_none">Sem categoria</SelectItem>
+            {categorias.map(c => (
+              <SelectItem key={c.id} value={c.name}>{c.icon} {c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <DialogFooter>
         <Button type="submit" disabled={salvando}
@@ -125,18 +141,27 @@ function EntradaForm({
 export function FinancialManager() {
   const [resumo, setResumo] = useState<Resumo | null>(null)
   const [config, setConfig] = useState<Config | null>(null)
+  const [categorias, setCategorias] = useState<Categoria[]>([])
   const [abrirEntrada, setAbrirEntrada] = useState<"income" | "expense" | null>(null)
   const [editando, setEditando] = useState<Entrada | null>(null)
   const [editandoConfig, setEditandoConfig] = useState(false)
   const [novoLimite, setNovoLimite] = useState("")
+  const [filtroCategoria, setFiltroCategoria] = useState<string>("_all")
+  const [gerenciarCats, setGerenciarCats] = useState(false)
+  const [novaCatNome, setNovaCatNome] = useState("")
+  const [novaCatIcon, setNovaCatIcon] = useState("")
+  const [editandoCatId, setEditandoCatId] = useState<string | null>(null)
+  const [editandoCatNome, setEditandoCatNome] = useState("")
 
   async function carregar() {
-    const [resResumo, resConfig] = await Promise.all([
+    const [resResumo, resConfig, resCats] = await Promise.all([
       fetch("/api/financial"),
       fetch("/api/financial/config"),
+      fetch("/api/financial/categorias"),
     ])
     setResumo(await resResumo.json())
     setConfig(await resConfig.json())
+    setCategorias(await resCats.json())
   }
 
   useEffect(() => { carregar() }, [])
@@ -183,6 +208,34 @@ export function FinancialManager() {
     carregar()
   }
 
+  async function adicionarCategoria() {
+    if (!novaCatNome.trim()) return
+    await fetch("/api/financial/categorias", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: novaCatNome.trim(), icon: novaCatIcon.trim() || null }),
+    })
+    setNovaCatNome("")
+    setNovaCatIcon("")
+    carregar()
+  }
+
+  async function renomearCategoria(id: string) {
+    if (!editandoCatNome.trim()) return
+    await fetch(`/api/financial/categorias/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: editandoCatNome.trim() }),
+    })
+    setEditandoCatId(null)
+    carregar()
+  }
+
+  async function excluirCategoria(id: string) {
+    await fetch(`/api/financial/categorias/${id}`, { method: "DELETE" })
+    carregar()
+  }
+
   if (!resumo) return <p className="text-sm text-muted-foreground">Carregando...</p>
 
   const gastoCartao = resumo.entradas
@@ -191,6 +244,21 @@ export function FinancialManager() {
   const limiteCartao = config?.cardLimit ?? 0
   const pctCartao = limiteCartao > 0 ? gastoCartao / limiteCartao : 0
   const corBarra = pctCartao > 0.9 ? "#ef4444" : pctCartao > 0.7 ? "#f59e0b" : "#10b981"
+
+  // Resumo por categoria (despesas)
+  const gastoPorCat = resumo.entradas
+    .filter(e => e.type === "expense")
+    .reduce<Record<string, number>>((acc, e) => {
+      const cat = e.category || "Sem categoria"
+      acc[cat] = (acc[cat] || 0) + e.amount
+      return acc
+    }, {})
+  const resumoCats = Object.entries(gastoPorCat).sort(([, a], [, b]) => b - a)
+
+  // Entradas filtradas para a lista
+  const entradasFiltradas = filtroCategoria === "_all"
+    ? resumo.entradas
+    : resumo.entradas.filter(e => (e.category || "") === (filtroCategoria === "_none" ? "" : filtroCategoria))
 
   return (
     <div className="space-y-5">
@@ -228,23 +296,35 @@ export function FinancialManager() {
           </div>
           <div className="flex items-baseline gap-2">
             <p className="text-lg font-semibold tabular">{fmt(gastoCartao)}</p>
-            {limiteCartao > 0 && (
-              <p className="text-xs text-muted-foreground">/ {fmt(limiteCartao)}</p>
-            )}
+            {limiteCartao > 0 && <p className="text-xs text-muted-foreground">/ {fmt(limiteCartao)}</p>}
           </div>
           {limiteCartao > 0 && (
             <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${Math.min(pctCartao * 100, 100)}%`,
-                  background: corBarra,
-                }}
-              />
+              <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(pctCartao * 100, 100)}%`, background: corBarra }} />
             </div>
           )}
         </div>
       </div>
+
+      {/* resumo por categoria */}
+      {resumoCats.length > 0 && (
+        <div className="rounded-2xl border border-border overflow-hidden">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-4 pt-3 pb-2">
+            Gastos por categoria
+          </p>
+          <div className="divide-y divide-border">
+            {resumoCats.map(([cat, total]) => {
+              const catObj = categorias.find(c => c.name === cat)
+              return (
+                <div key={cat} className="flex items-center justify-between px-4 py-2">
+                  <span className="text-sm">{catObj?.icon ? `${catObj.icon} ` : ""}{cat}</span>
+                  <span className="text-sm font-medium tabular text-[#ef4444]">{fmt(total)}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ações rápidas */}
       <div className="grid grid-cols-2 gap-3">
@@ -256,13 +336,34 @@ export function FinancialManager() {
         </Button>
       </div>
 
+      {/* filtro + gerenciar */}
+      <div className="flex items-center gap-2">
+        <div className="flex-1">
+          <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+            <SelectTrigger className="bg-secondary border-border text-sm">
+              <SelectValue placeholder="Todas as categorias" />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              <SelectItem value="_all">Todas</SelectItem>
+              <SelectItem value="_none">Sem categoria</SelectItem>
+              {categorias.map(c => (
+                <SelectItem key={c.id} value={c.name}>{c.icon} {c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground" onClick={() => setGerenciarCats(true)}>
+          <Tags size={16} />
+        </Button>
+      </div>
+
       {/* lista */}
       <div className="rounded-2xl border border-border overflow-hidden">
         <div className="divide-y divide-border">
-          {resumo.entradas.length === 0 && (
-            <p className="text-sm text-muted-foreground p-4">Sem lançamentos este mês.</p>
+          {entradasFiltradas.length === 0 && (
+            <p className="text-sm text-muted-foreground p-4">Sem lançamentos.</p>
           )}
-          {resumo.entradas.map((e) => (
+          {entradasFiltradas.map((e) => (
             <div key={e.id} className="flex items-center justify-between px-4 py-3">
               <div className="flex items-center gap-3 min-w-0">
                 <span className={e.type === "income" ? "text-[#10b981]" : "text-[#ef4444]"}>
@@ -299,7 +400,7 @@ export function FinancialManager() {
           <DialogHeader>
             <DialogTitle>{abrirEntrada === "income" ? "Nova entrada" : "Nova saída"}</DialogTitle>
           </DialogHeader>
-          {abrirEntrada && <EntradaForm tipo={abrirEntrada} onSalvar={criar} />}
+          {abrirEntrada && <EntradaForm tipo={abrirEntrada} categorias={categorias} onSalvar={criar} />}
         </DialogContent>
       </Dialog>
 
@@ -307,7 +408,7 @@ export function FinancialManager() {
       <Dialog open={!!editando} onOpenChange={v => !v && setEditando(null)}>
         <DialogContent className="bg-card border-border">
           <DialogHeader><DialogTitle>Editar lançamento</DialogTitle></DialogHeader>
-          {editando && <EntradaForm tipo={editando.type as "income" | "expense"} inicial={editando} onSalvar={editar} />}
+          {editando && <EntradaForm tipo={editando.type as "income" | "expense"} inicial={editando} categorias={categorias} onSalvar={editar} />}
         </DialogContent>
       </Dialog>
 
@@ -320,6 +421,45 @@ export function FinancialManager() {
             <DialogFooter>
               <Button onClick={salvarLimite} className="bg-primary text-primary-foreground hover:bg-primary/90">Salvar</Button>
             </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* dialog gerenciar categorias */}
+      <Dialog open={gerenciarCats} onOpenChange={setGerenciarCats}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader><DialogTitle>Categorias</DialogTitle></DialogHeader>
+          <div className="space-y-1 max-h-60 overflow-y-auto">
+            {categorias.map(c => (
+              <div key={c.id} className="flex items-center gap-2 py-1.5">
+                {editandoCatId === c.id ? (
+                  <>
+                    <Input
+                      value={editandoCatNome}
+                      onChange={e => setEditandoCatNome(e.target.value)}
+                      className="bg-secondary border-border h-8 text-sm flex-1"
+                      autoFocus
+                    />
+                    <button onClick={() => renomearCategoria(c.id)} className="text-[#10b981] hover:opacity-80"><Check size={14} /></button>
+                    <button onClick={() => setEditandoCatId(null)} className="text-muted-foreground hover:opacity-80"><X size={14} /></button>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1 text-sm">{c.icon} {c.name}</span>
+                    <button onClick={() => { setEditandoCatId(c.id); setEditandoCatNome(c.name) }} className="text-muted-foreground hover:text-foreground"><Pencil size={13} /></button>
+                    <button onClick={() => excluirCategoria(c.id)} className="text-muted-foreground hover:text-destructive"><Trash2 size={13} /></button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-border pt-3 space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Nova categoria</p>
+            <div className="flex gap-2">
+              <Input value={novaCatIcon} onChange={e => setNovaCatIcon(e.target.value)} placeholder="🏷️" className="bg-secondary border-border w-16 text-center" maxLength={2} />
+              <Input value={novaCatNome} onChange={e => setNovaCatNome(e.target.value)} placeholder="Nome" className="bg-secondary border-border flex-1" />
+              <Button onClick={adicionarCategoria} size="sm" className="bg-primary text-primary-foreground">+</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

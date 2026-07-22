@@ -48,6 +48,20 @@ async function main() {
     console.log("Sistemas ACP criados.")
   }
 
+  await prisma.financialCategory.createMany({
+    data: [
+      { name: "Alimentação", icon: "🍽️" },
+      { name: "Transporte",  icon: "🚗" },
+      { name: "Lazer",       icon: "🎮" },
+      { name: "Freela",      icon: "💻" },
+      { name: "República",   icon: "🏠" },
+      { name: "Saúde",       icon: "🏥" },
+      { name: "Outros",      icon: "📦" },
+    ],
+    skipDuplicates: true,
+  })
+  console.log("Categorias financeiras criadas.")
+
   console.log("Seed concluído.")
 }
 

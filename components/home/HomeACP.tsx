@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { DayTypeModal } from "./DayTypeModal"
 import { toast } from "sonner"
-import { Circle, ChevronRight, ChevronDown } from "lucide-react"
+import { Circle, ChevronRight, ChevronDown, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -32,14 +32,25 @@ interface LogHoje {
   dayType: string
 }
 
+interface ResumoSemanal {
+  diasBons: number
+  diasRuins: number
+  diasPerdidos: number
+  resistenciaMedia: number | null
+  totalLogs: number
+}
+
 interface Props {
   logHoje: LogHoje | null
   sistemas: Sistema[]
   tarefas: Tarefa[]
   entradas: Tarefa[]
+  atrasadas: Tarefa[]
+  streak: number
+  resumoSemanal: ResumoSemanal
 }
 
-export function HomeACP({ logHoje, sistemas, tarefas, entradas }: Props) {
+export function HomeACP({ logHoje, sistemas, tarefas, entradas, atrasadas, streak, resumoSemanal }: Props) {
   const [dayType, setDayType] = useState<string | null>(logHoje?.dayType ?? null)
   const [logId, setLogId] = useState<string | null>(logHoje?.id ?? null)
   const [feitas, setFeitas] = useState<Set<string>>(new Set())
@@ -79,14 +90,30 @@ export function HomeACP({ logHoje, sistemas, tarefas, entradas }: Props) {
   const esforcos = dayType === "good" ? ["high", "any"] : ["low", "any"]
   const tarefasDoDia = tarefas.filter((t) => esforcos.includes(t.effort) && !feitas.has(t.id))
   const reentradas = entradas.filter((t) => t.nextSessionNote && !feitas.has(t.id) && esforcos.includes(t.effort))
+  const atrasadasVisiveis = atrasadas.filter(t => !feitas.has(t.id))
 
   const labelDia = dayType === "good" ? "☀️ Dia bom" : "🌧️ Dia ruim"
 
+  function diasAtraso(dueDate: Date | null): number {
+    if (!dueDate) return 0
+    const brasilia = new Date(Date.now() - 3 * 60 * 60 * 1000)
+    const hoje = new Date(Date.UTC(brasilia.getUTCFullYear(), brasilia.getUTCMonth(), brasilia.getUTCDate()))
+    const due = new Date(String(dueDate).slice(0, 10) + "T12:00:00.000Z")
+    return Math.floor((hoje.getTime() - due.getTime()) / (1000 * 60 * 60 * 24))
+  }
+
   return (
     <div className="space-y-6">
-      {/* status do dia */}
+      {/* header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Dashboard</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-semibold">Dashboard</h1>
+          {streak > 0 && (
+            <span className="text-xs bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-full font-medium">
+              🔥 {streak} {streak === 1 ? "dia" : "dias"}
+            </span>
+          )}
+        </div>
         <button
           onClick={() => setDayType(null)}
           title="Clique para alterar o tipo do dia"
@@ -95,6 +122,58 @@ export function HomeACP({ logHoje, sistemas, tarefas, entradas }: Props) {
           {labelDia}
         </button>
       </div>
+
+      {/* resumo semanal */}
+      {resumoSemanal.totalLogs > 0 && (
+        <div className="rounded-xl bg-card border border-border px-4 py-3 text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+          <span className="font-medium text-foreground">Esta semana</span>
+          <span>☀️ {resumoSemanal.diasBons} bons</span>
+          <span>🌧️ {resumoSemanal.diasRuins} ruins</span>
+          {resumoSemanal.resistenciaMedia !== null && (
+            <span>Resist. média: {resumoSemanal.resistenciaMedia}/10</span>
+          )}
+          {resumoSemanal.diasPerdidos > 0 && (
+            <span className="text-[#ef4444]">{resumoSemanal.diasPerdidos} perdidos</span>
+          )}
+        </div>
+      )}
+
+      {/* atrasadas */}
+      {atrasadasVisiveis.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-[#ef4444] uppercase tracking-widest mb-3 flex items-center gap-1.5">
+            <AlertTriangle size={12} /> Atrasadas
+          </p>
+          <div className="space-y-1.5">
+            {atrasadasVisiveis.map((t) => {
+              const atraso = diasAtraso(t.dueDate)
+              return (
+                <div key={t.id} className="rounded-xl bg-card border border-[#ef4444]/30 overflow-hidden">
+                  <div className="flex items-center gap-3 p-3">
+                    <button
+                      onClick={() => marcarFeita(t.id)}
+                      className="shrink-0 text-[#ef4444]/60 hover:text-[#10b981] transition-colors"
+                    >
+                      <Circle size={16} />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm">{t.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        <span style={{ color: t.system.color ?? "#94a3b8" }}>
+                          {t.system.icon} {t.system.name}
+                        </span>
+                        <span className="text-[#ef4444] ml-1">
+                          · {atraso === 1 ? "1 dia atraso" : `${atraso} dias atraso`}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* sistemas */}
       <div>
@@ -141,10 +220,7 @@ export function HomeACP({ logHoje, sistemas, tarefas, entradas }: Props) {
                   </button>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium leading-snug">{t.title}</p>
-                    <p
-                      className="text-xs mt-0.5 font-medium"
-                      style={{ color: t.system.color ?? "#94a3b8" }}
-                    >
+                    <p className="text-xs mt-0.5 font-medium" style={{ color: t.system.color ?? "#94a3b8" }}>
                       {t.system.icon} {t.system.name}
                     </p>
                   </div>

@@ -59,6 +59,36 @@ export async function deletarEntrada(id: string) {
   return prisma.financialEntry.delete({ where: { id } })
 }
 
+const CATEGORIAS_PADRAO = [
+  { name: "Alimentação", icon: "🍽️" },
+  { name: "Transporte",  icon: "🚗" },
+  { name: "Lazer",       icon: "🎮" },
+  { name: "Freela",      icon: "💻" },
+  { name: "República",   icon: "🏠" },
+  { name: "Saúde",       icon: "🏥" },
+  { name: "Outros",      icon: "📦" },
+]
+
+export async function listarCategorias() {
+  const count = await prisma.financialCategory.count()
+  if (count === 0) {
+    await prisma.financialCategory.createMany({ data: CATEGORIAS_PADRAO })
+  }
+  return prisma.financialCategory.findMany({ orderBy: { name: "asc" } })
+}
+
+export async function criarCategoria(data: { name: string; icon?: string | null }) {
+  return prisma.financialCategory.create({ data })
+}
+
+export async function atualizarCategoria(id: string, data: { name?: string; icon?: string | null }) {
+  return prisma.financialCategory.update({ where: { id }, data })
+}
+
+export async function deletarCategoria(id: string) {
+  return prisma.financialCategory.delete({ where: { id } })
+}
+
 export async function obterConfig() {
   const c = await prisma.financialConfig.findFirst()
   if (c) return c
