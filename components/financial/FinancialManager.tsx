@@ -117,7 +117,7 @@ function EntradaForm({
       </div>
       <div className="space-y-1.5">
         <Label className="text-xs">Categoria</Label>
-        <Select value={category} onValueChange={v => setCategory(v === "_none" ? "" : v)}>
+        <Select value={category} onValueChange={v => v != null && setCategory(v === "_none" ? "" : v)}>
           <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Sem categoria" /></SelectTrigger>
           <SelectContent className="bg-card border-border">
             <SelectItem value="_none">Sem categoria</SelectItem>
