@@ -200,7 +200,7 @@ export function DailyLogManager() {
               <tbody>
                 {historico.map((l) => (
                   <tr key={l.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-2">{format(new Date(l.date), "dd/MM", { locale: ptBR })}</td>
+                    <td className="px-4 py-2">{format(new Date(String(l.date).slice(0, 10) + "T12:00:00.000Z"), "dd/MM", { locale: ptBR })}</td>
                     <td className="px-3 py-2">{l.dayType === "good" ? "☀️" : "🌧️"}</td>
                     <td className="px-3 py-2 tabular">{l.resistanceAvg ?? "—"}</td>
                     <td className="px-3 py-2">{l.executedSomething === null ? "—" : l.executedSomething ? "✓" : "✗"}</td>
