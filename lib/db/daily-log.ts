@@ -20,11 +20,15 @@ export async function logDeHoje() {
 
 export async function definirTipoDia(dayType: string) {
   const hoje = dataHojeUTC()
-  return prisma.dailyLog.upsert({
-    where: { date: hoje },
-    create: { date: hoje, dayType },
-    update: { dayType },
+  const amanha = proximoDiaUTC()
+  // findFirst + update/create avoids PrismaPg @db.Date upsert-where comparison issues
+  const existente = await prisma.dailyLog.findFirst({
+    where: { date: { gte: hoje, lt: amanha } },
   })
+  if (existente) {
+    return prisma.dailyLog.update({ where: { id: existente.id }, data: { dayType } })
+  }
+  return prisma.dailyLog.create({ data: { date: hoje, dayType } })
 }
 
 export async function atualizarLogNoite(

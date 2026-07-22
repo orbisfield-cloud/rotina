@@ -34,7 +34,7 @@ export async function criarEntrada(data: {
 }) {
   return prisma.financialEntry.create({
     data: {
-      date: data.date ? new Date(data.date) : new Date(),
+      date: data.date ? new Date(data.date + "T12:00:00.000Z") : new Date(),
       type: data.type,
       amount: data.amount,
       description: data.description,
@@ -51,7 +51,7 @@ export async function atualizarEntrada(
   const { date, ...rest } = data
   return prisma.financialEntry.update({
     where: { id },
-    data: { ...rest, ...(date ? { date: new Date(date) } : {}) },
+    data: { ...rest, ...(date ? { date: new Date(date + "T12:00:00.000Z") } : {}) },
   })
 }
 

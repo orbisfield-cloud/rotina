@@ -52,7 +52,11 @@ function EntradaForm({
   inicial?: Entrada
   onSalvar: (d: Record<string, unknown>) => Promise<void>
 }) {
-  const [date, setDate] = useState(inicial ? format(new Date(inicial.date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"))
+  const [date, setDate] = useState(
+    inicial
+      ? String(inicial.date).slice(0, 10)
+      : format(new Date(), "yyyy-MM-dd")
+  )
   const [amount, setAmount] = useState(String(inicial?.amount ?? ""))
   const [description, setDescription] = useState(inicial?.description ?? "")
   const [category, setCategory] = useState(inicial?.category ?? "")
@@ -267,7 +271,7 @@ export function FinancialManager() {
                 <div className="min-w-0">
                   <p className="text-sm truncate">{e.description}</p>
                   <p className="text-xs text-muted-foreground">
-                    {format(new Date(e.date), "dd/MM", { locale: ptBR })}
+                    {format(new Date(String(e.date).slice(0, 10) + "T12:00:00.000Z"), "dd/MM", { locale: ptBR })}
                     {e.category ? ` · ${e.category}` : ""}
                     {e.type === "expense" && e.method ? ` · ${METHOD_LABELS[e.method] ?? e.method}` : ""}
                   </p>
