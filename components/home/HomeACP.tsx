@@ -78,7 +78,7 @@ export function HomeACP({ logHoje, sistemas, tarefas, entradas }: Props) {
 
   const esforcos = dayType === "good" ? ["high", "any"] : ["low", "any"]
   const tarefasDoDia = tarefas.filter((t) => esforcos.includes(t.effort) && !feitas.has(t.id))
-  const reentradas = entradas.filter((t) => t.nextSessionNote && !feitas.has(t.id))
+  const reentradas = entradas.filter((t) => t.nextSessionNote && !feitas.has(t.id) && esforcos.includes(t.effort))
 
   const labelDia = dayType === "good" ? "☀️ Dia bom" : "🌧️ Dia ruim"
 

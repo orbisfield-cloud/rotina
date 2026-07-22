@@ -1,17 +1,25 @@
 import { prisma } from "@/lib/db"
 
-function dataHoje() {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return d
+// Always use UTC date to avoid timezone drift on Railway (UTC) and local dev
+function dataHojeUTC(): Date {
+  const now = new Date()
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+}
+
+function proximoDiaUTC(): Date {
+  const hoje = dataHojeUTC()
+  return new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate() + 1))
 }
 
 export async function logDeHoje() {
-  return prisma.dailyLog.findUnique({ where: { date: dataHoje() } })
+  // Use gte/lt range instead of exact match — more robust with @db.Date + PrismaPg adapter
+  return prisma.dailyLog.findFirst({
+    where: { date: { gte: dataHojeUTC(), lt: proximoDiaUTC() } },
+  })
 }
 
 export async function definirTipoDia(dayType: string) {
-  const hoje = dataHoje()
+  const hoje = dataHojeUTC()
   return prisma.dailyLog.upsert({
     where: { date: hoje },
     create: { date: hoje, dayType },
