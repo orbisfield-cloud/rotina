@@ -3,42 +3,72 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
-import { LayoutDashboard, Pill, Dumbbell, Scale, Trophy, Menu, X } from "lucide-react"
+import {
+  LayoutDashboard, Layers, Wallet, BookOpen,
+  Pill, Dumbbell, Scale, Trophy, Menu, X,
+} from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/suplementos", label: "Suplementos", icon: Pill },
-  { href: "/treino", label: "Treino", icon: Dumbbell },
-  { href: "/peso", label: "Peso", icon: Scale },
-  { href: "/desafio", label: "Desafio", icon: Trophy },
+const sections = [
+  {
+    label: null,
+    items: [
+      { href: "/", label: "Dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "ACP",
+    items: [
+      { href: "/systems", label: "Sistemas", icon: Layers },
+      { href: "/financeiro", label: "Financeiro", icon: Wallet },
+      { href: "/log", label: "Registro Diário", icon: BookOpen },
+    ],
+  },
+  {
+    label: "Corpo",
+    items: [
+      { href: "/suplementos", label: "Suplementos", icon: Pill },
+      { href: "/treino", label: "Treino", icon: Dumbbell },
+      { href: "/peso", label: "Peso", icon: Scale },
+      { href: "/desafio", label: "Desafio", icon: Trophy },
+    ],
+  },
 ]
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   return (
-    <nav className="flex flex-col gap-1 p-4">
-      {navItems.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href
-        return (
-          <Link
-            key={href}
-            href={href}
-            onClick={onNavigate}
-            className={cn(
-              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-              active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-            )}
-          >
-            <Icon size={18} />
-            {label}
-          </Link>
-        )
-      })}
+    <nav className="flex flex-col gap-0.5 p-3">
+      {sections.map((section, i) => (
+        <div key={i} className={i > 0 ? "mt-3" : ""}>
+          {section.label && (
+            <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+              {section.label}
+            </p>
+          )}
+          {section.items.map(({ href, label, icon: Icon }) => {
+            const active = href === "/" ? pathname === "/" : pathname.startsWith(href)
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={onNavigate}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                  active
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                )}
+              >
+                <Icon size={16} />
+                {label}
+              </Link>
+            )
+          })}
+        </div>
+      ))}
     </nav>
   )
 }

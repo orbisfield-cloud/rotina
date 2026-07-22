@@ -55,3 +55,82 @@ model MedidaCorporal {
 
   @@index([pessoa, data])
 }
+
+// ==========================================
+// ACP — SISTEMAS E TAREFAS
+// ==========================================
+
+model System {
+  id        String   @id @default(cuid())
+  name      String
+  icon      String?
+  color     String?
+  order     Int      @default(0)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  folders   Folder[]
+  tasks     Task[]
+}
+
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  systemId  String
+  system    System   @relation(fields: [systemId], references: [id], onDelete: Cascade)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  tasks     Task[]
+}
+
+model Task {
+  id               String    @id @default(cuid())
+  title            String
+  description      String?
+  systemId         String
+  system           System    @relation(fields: [systemId], references: [id])
+  folderId         String?
+  folder           Folder?   @relation(fields: [folderId], references: [id])
+  effort           String    @default("high")
+  done             Boolean   @default(false)
+  doneAt           DateTime?
+  dueDate          DateTime?
+  nextSessionNote  String?
+  consequenceChain String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+// ==========================================
+// ACP — REGISTRO DIÁRIO
+// ==========================================
+
+model DailyLog {
+  id                String   @id @default(cuid())
+  date              DateTime @unique @db.Date
+  dayType           String
+  resistanceAvg     Int?
+  executedSomething Boolean?
+  dayLost           Boolean?
+  freeNote          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ==========================================
+// ACP — FINANCEIRO
+// ==========================================
+
+model FinancialEntry {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  type        String
+  amount      Float
+  description String
+  category    String?
+  createdAt   DateTime @default(now())
+}
+
+model FinancialConfig {
+  id        String @id @default(cuid())
+  cardLimit Float  @default(0)
+}

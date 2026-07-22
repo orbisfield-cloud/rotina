@@ -45,6 +45,21 @@ async function main() {
     ],
   })
 
+  const totalSistemas = await prisma.system.count()
+  if (totalSistemas === 0) {
+    await prisma.system.createMany({
+      data: [
+        { name: "TDAH",       icon: "⚡", color: "#8B5CF6", order: 0, isDefault: true },
+        { name: "Graduação",  icon: "🎓", color: "#3B82F6", order: 1, isDefault: true },
+        { name: "República",  icon: "🏠", color: "#10B981", order: 2, isDefault: true },
+        { name: "gMAP",       icon: "🗺️", color: "#F59E0B", order: 3, isDefault: true },
+        { name: "Financeiro", icon: "💰", color: "#059669", order: 4, isDefault: true },
+        { name: "Pessoal",    icon: "🙋", color: "#EC4899", order: 5, isDefault: true },
+      ],
+    })
+    console.log("Sistemas ACP criados.")
+  }
+
   console.log("Seed concluído.")
 }
 
