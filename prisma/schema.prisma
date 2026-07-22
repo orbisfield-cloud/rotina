@@ -135,3 +135,50 @@ model FinancialConfig {
   id        String @id @default(cuid())
   cardLimit Float  @default(0)
 }
+
+// ==========================================
+// GRADUAÇÃO
+// ==========================================
+
+model Semester {
+  id          String       @id @default(cuid())
+  name        String
+  active      Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  disciplines Discipline[]
+}
+
+model Discipline {
+  id              String     @id @default(cuid())
+  name            String
+  code            String?
+  semesterId      String
+  semester        Semester   @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  color           String
+  totalClasses    Int
+  currentAbsences Int        @default(0)
+  gradeFormula    String?
+  status          String     @default("in_progress")
+  createdAt       DateTime   @default(now())
+  grades          Grade[]
+  schedules       Schedule[]
+}
+
+model Grade {
+  id           String     @id @default(cuid())
+  name         String
+  value        Float?
+  weight       Float      @default(1)
+  disciplineId String
+  discipline   Discipline @relation(fields: [disciplineId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+}
+
+model Schedule {
+  id           String     @id @default(cuid())
+  disciplineId String
+  discipline   Discipline @relation(fields: [disciplineId], references: [id], onDelete: Cascade)
+  dayOfWeek    Int
+  startTime    String
+  endTime      String
+}
