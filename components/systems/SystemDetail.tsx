@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Plus, Pencil, Trash2, CheckCircle2, Circle, FolderPlus, ChevronDown, ChevronRight } from "lucide-react"
+import { Plus, Pencil, Trash2, Circle, FolderPlus, ChevronDown, ChevronRight, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -21,6 +21,7 @@ interface Tarefa {
   nextSessionNote: string | null
   consequenceChain: string | null
   folderId: string | null
+  recurrence: string | null
 }
 
 interface Pasta {
@@ -43,6 +44,13 @@ const ESFORCOS = [
   { value: "high", label: "Dia bom" },
   { value: "low", label: "Dia ruim" },
   { value: "any", label: "Qualquer dia" },
+]
+
+const RECORRENCIAS = [
+  { value: "", label: "Única" },
+  { value: "daily", label: "Diária" },
+  { value: "weekly", label: "Semanal" },
+  { value: "monthly", label: "Mensal" },
 ]
 
 const ESFORCO_BADGE: Record<string, string> = {
@@ -72,7 +80,13 @@ function TaskItem({ tarefa, onDone, onEdit, onDelete }: {
         >
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm leading-snug">{tarefa.title}</p>
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+              {tarefa.recurrence && (
+                <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-blue-500/10 text-blue-400 flex items-center gap-0.5">
+                  <RefreshCw size={9} />
+                  {RECORRENCIAS.find(r => r.value === tarefa.recurrence)?.label ?? tarefa.recurrence}
+                </span>
+              )}
               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${ESFORCO_BADGE[tarefa.effort] ?? ESFORCO_BADGE.any}`}>
                 {ESFORCOS.find(e => e.value === tarefa.effort)?.label}
               </span>
@@ -132,6 +146,7 @@ function TarefaForm({
   const [dueDate, setDueDate] = useState(inicial?.dueDate ? format(new Date(inicial.dueDate), "yyyy-MM-dd") : "")
   const [nextSessionNote, setNextSessionNote] = useState(inicial?.nextSessionNote ?? "")
   const [consequenceChain, setConsequenceChain] = useState(inicial?.consequenceChain ?? "")
+  const [recurrence, setRecurrence] = useState(inicial?.recurrence ?? "")
   const [salvando, setSalvando] = useState(false)
 
   async function submit(e: React.FormEvent) {
@@ -147,6 +162,7 @@ function TarefaForm({
       dueDate: dueDate || null,
       nextSessionNote: nextSessionNote || null,
       consequenceChain: consequenceChain || null,
+      recurrence: recurrence || null,
     })
     setSalvando(false)
   }
@@ -168,8 +184,22 @@ function TarefaForm({
           </Select>
         </div>
         <div className="space-y-1.5">
+          <Label className="text-xs">Recorrência</Label>
+          <Select value={recurrence || "_none"} onValueChange={v => v != null && setRecurrence(v === "_none" ? "" : v)}>
+            <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              <SelectItem value="_none">Única</SelectItem>
+              <SelectItem value="daily">Diária</SelectItem>
+              <SelectItem value="weekly">Semanal</SelectItem>
+              <SelectItem value="monthly">Mensal</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
           <Label className="text-xs">Pasta</Label>
-          <Select value={folderId || "_none"} onValueChange={v => setFolderId(!v || v === "_none" ? "" : v)}>
+          <Select value={folderId || "_none"} onValueChange={v => v != null && setFolderId(v === "_none" ? "" : v)}>
             <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Sem pasta" /></SelectTrigger>
             <SelectContent className="bg-card border-border">
               <SelectItem value="_none">Sem pasta</SelectItem>
@@ -177,10 +207,10 @@ function TarefaForm({
             </SelectContent>
           </Select>
         </div>
-      </div>
-      <div className="space-y-1.5">
-        <Label className="text-xs">Data limite</Label>
-        <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="bg-secondary border-border" />
+        <div className="space-y-1.5">
+          <Label className="text-xs">Data limite</Label>
+          <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="bg-secondary border-border" />
+        </div>
       </div>
       <div className="space-y-1.5">
         <Label className="text-xs">Próxima sessão começa por...</Label>
@@ -197,6 +227,12 @@ function TarefaForm({
       </DialogFooter>
     </form>
   )
+}
+
+const TAREFA_VAZIA: Tarefa = {
+  id: "", title: "", description: null, effort: "high",
+  dueDate: null, nextSessionNote: null, consequenceChain: null,
+  folderId: null, recurrence: null,
 }
 
 export function SystemDetail({ sistemaInicial }: { sistemaInicial: Sistema }) {
@@ -316,9 +352,7 @@ export function SystemDetail({ sistemaInicial }: { sistemaInicial: Sistema }) {
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Geral</p>
           <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 text-xs gap-1 text-primary"
+            size="sm" variant="ghost" className="h-6 text-xs gap-1 text-primary"
             onClick={() => setNovaTarefaPastaId(null)}
           >
             <Plus size={12} /> Tarefa
@@ -385,7 +419,7 @@ export function SystemDetail({ sistemaInicial }: { sistemaInicial: Sistema }) {
             <TarefaForm
               systemId={sistema.id}
               pastas={todasPastas}
-              inicial={novaTarefaPastaId !== null ? { id: "", title: "", description: null, effort: "high", dueDate: null, nextSessionNote: null, consequenceChain: null, folderId: novaTarefaPastaId } : undefined}
+              inicial={novaTarefaPastaId !== null ? { ...TAREFA_VAZIA, folderId: novaTarefaPastaId } : undefined}
               onSalvar={criarTarefa}
             />
           )}

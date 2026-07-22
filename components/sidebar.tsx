@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useState } from "react"
 import {
   LayoutDashboard, Layers, Wallet, BookOpen, GraduationCap,
-  Pill, Dumbbell, Scale, Trophy, Menu, X,
+  Pill, Dumbbell, Scale, Trophy, Menu, X, ScrollText,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -22,9 +22,10 @@ const sections = [
     label: "ACP",
     items: [
       { href: "/systems", label: "Sistemas", icon: Layers },
-      { href: "/graduacao", label: "Graduação", icon: GraduationCap },
       { href: "/financeiro", label: "Financeiro", icon: Wallet },
       { href: "/log", label: "Registro Diário", icon: BookOpen },
+      { href: "/graduacao", label: "Graduação", icon: GraduationCap },
+      { href: "/protocolos", label: "Protocolos", icon: ScrollText },
     ],
   },
   {
