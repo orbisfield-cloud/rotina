@@ -30,6 +30,7 @@ export async function criarEntrada(data: {
   amount: number
   description: string
   category?: string | null
+  method?: string | null
 }) {
   return prisma.financialEntry.create({
     data: {
@@ -38,13 +39,14 @@ export async function criarEntrada(data: {
       amount: data.amount,
       description: data.description,
       category: data.category || null,
+      method: data.method || null,
     },
   })
 }
 
 export async function atualizarEntrada(
   id: string,
-  data: Partial<{ date: string; type: string; amount: number; description: string; category: string | null }>
+  data: Partial<{ date: string; type: string; amount: number; description: string; category: string | null; method: string | null }>
 ) {
   const { date, ...rest } = data
   return prisma.financialEntry.update({

@@ -57,37 +57,59 @@ function TaskItem({ tarefa, onDone, onEdit, onDelete }: {
   onEdit: (t: Tarefa) => void
   onDelete: (id: string) => void
 }) {
+  const [expandida, setExpandida] = useState(false)
+  const temDetalhes = !!(tarefa.nextSessionNote || tarefa.consequenceChain)
+
   return (
-    <div className="flex items-start gap-2.5 p-3 rounded-xl bg-secondary/40 border border-border/50">
-      <button onClick={() => onDone(tarefa.id)} className="mt-0.5 shrink-0 text-muted-foreground hover:text-[#10b981] transition-colors">
-        <Circle size={15} />
-      </button>
-      <div className="flex-1 min-w-0 space-y-1">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-sm leading-snug">{tarefa.title}</p>
-          <div className="flex items-center gap-1 shrink-0">
-            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${ESFORCO_BADGE[tarefa.effort] ?? ESFORCO_BADGE.any}`}>
-              {ESFORCOS.find(e => e.value === tarefa.effort)?.label}
-            </span>
+    <div className="rounded-xl bg-secondary/40 border border-border/50 overflow-hidden">
+      <div className="flex items-start gap-2.5 p-3">
+        <button onClick={() => onDone(tarefa.id)} className="mt-0.5 shrink-0 text-muted-foreground hover:text-[#10b981] transition-colors">
+          <Circle size={15} />
+        </button>
+        <div
+          className={`flex-1 min-w-0 space-y-1 ${temDetalhes ? "cursor-pointer select-none" : ""}`}
+          onClick={() => temDetalhes && setExpandida(v => !v)}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm leading-snug">{tarefa.title}</p>
+            <div className="flex items-center gap-1 shrink-0">
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${ESFORCO_BADGE[tarefa.effort] ?? ESFORCO_BADGE.any}`}>
+                {ESFORCOS.find(e => e.value === tarefa.effort)?.label}
+              </span>
+              {temDetalhes && (
+                <ChevronDown size={12} className={`text-muted-foreground transition-transform duration-200 ${expandida ? "rotate-180" : ""}`} />
+              )}
+            </div>
           </div>
+          {tarefa.dueDate && (
+            <p className="text-xs text-muted-foreground">vence {format(new Date(tarefa.dueDate), "dd/MM/yyyy", { locale: ptBR })}</p>
+          )}
         </div>
-        {tarefa.dueDate && (
-          <p className="text-xs text-muted-foreground">vence {format(new Date(tarefa.dueDate), "dd/MM/yyyy", { locale: ptBR })}</p>
-        )}
-        {tarefa.nextSessionNote && (
-          <div className="rounded-lg bg-background px-2.5 py-1.5 text-xs text-foreground">
-            <span className="text-muted-foreground">Próxima sessão: </span>{tarefa.nextSessionNote}
-          </div>
-        )}
+        <div className="flex gap-1 shrink-0">
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => onEdit(tarefa)}>
+            <Pencil size={12} />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => onDelete(tarefa.id)}>
+            <Trash2 size={12} />
+          </Button>
+        </div>
       </div>
-      <div className="flex gap-1 shrink-0">
-        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => onEdit(tarefa)}>
-          <Pencil size={12} />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => onDelete(tarefa.id)}>
-          <Trash2 size={12} />
-        </Button>
-      </div>
+      {expandida && temDetalhes && (
+        <div className="px-3 pb-3 ml-5 space-y-2">
+          {tarefa.nextSessionNote && (
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Próxima sessão</p>
+              <div className="rounded-lg bg-background px-2.5 py-1.5 text-xs">{tarefa.nextSessionNote}</div>
+            </div>
+          )}
+          {tarefa.consequenceChain && (
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Cadeia de consequências</p>
+              <div className="rounded-lg bg-background px-2.5 py-1.5 text-xs whitespace-pre-wrap">{tarefa.consequenceChain}</div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -166,7 +188,7 @@ function TarefaForm({
       </div>
       <div className="space-y-1.5">
         <Label className="text-xs">Cadeia de consequências</Label>
-        <Textarea value={consequenceChain} onChange={e => setConsequenceChain(e.target.value)} placeholder="Se eu fizer isso → ... → ... → ..." rows={3} className="bg-secondary border-border resize-none text-xs" />
+        <Textarea value={consequenceChain} onChange={e => setConsequenceChain(e.target.value)} placeholder="Tarefa feita → o que muda? → e depois? → e depois? → qual liberdade isso aproxima?" rows={3} className="bg-secondary border-border resize-none text-xs" />
       </div>
       <DialogFooter>
         <Button type="submit" disabled={salvando} className="bg-primary text-primary-foreground hover:bg-primary/90">

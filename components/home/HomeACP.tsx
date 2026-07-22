@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { DayTypeModal } from "./DayTypeModal"
 import { toast } from "sonner"
-import { CheckCircle2, Circle, ChevronRight } from "lucide-react"
+import { Circle, ChevronRight, ChevronDown } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -22,6 +22,7 @@ interface Tarefa {
   effort: string
   dueDate: Date | null
   nextSessionNote: string | null
+  consequenceChain: string | null
   system: { name: string; color: string | null; icon: string | null }
   folder?: { name: string } | null
 }
@@ -42,6 +43,7 @@ export function HomeACP({ logHoje, sistemas, tarefas, entradas }: Props) {
   const [dayType, setDayType] = useState<string | null>(logHoje?.dayType ?? null)
   const [logId, setLogId] = useState<string | null>(logHoje?.id ?? null)
   const [feitas, setFeitas] = useState<Set<string>>(new Set())
+  const [expandidas, setExpandidas] = useState<Set<string>>(new Set())
 
   async function handleDayType(tipo: "good" | "bad") {
     const res = await fetch("/api/daily-log", {
@@ -64,6 +66,14 @@ export function HomeACP({ logHoje, sistemas, tarefas, entradas }: Props) {
     toast.success("Tarefa concluída")
   }
 
+  function toggleExpand(id: string) {
+    setExpandidas(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
   if (!dayType) return <DayTypeModal onSelect={handleDayType} />
 
   const esforcos = dayType === "good" ? ["high", "any"] : ["low", "any"]
@@ -77,7 +87,13 @@ export function HomeACP({ logHoje, sistemas, tarefas, entradas }: Props) {
       {/* status do dia */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Dashboard</h1>
-        <span className="text-xs text-muted-foreground bg-secondary px-2.5 py-1 rounded-full">{labelDia}</span>
+        <button
+          onClick={() => setDayType(null)}
+          title="Clique para alterar o tipo do dia"
+          className="text-xs text-muted-foreground bg-secondary px-2.5 py-1 rounded-full hover:bg-secondary/80 transition-colors"
+        >
+          {labelDia}
+        </button>
       </div>
 
       {/* sistemas */}
@@ -118,12 +134,12 @@ export function HomeACP({ logHoje, sistemas, tarefas, entradas }: Props) {
           </p>
           <div className="space-y-2">
             {reentradas.map((t) => (
-              <div key={t.id} className="rounded-xl bg-card border border-border p-3 space-y-1">
-                <div className="flex items-start gap-2">
+              <div key={t.id} className="rounded-xl bg-card border border-border overflow-hidden">
+                <div className="flex items-start gap-2 p-3">
                   <button onClick={() => marcarFeita(t.id)} className="mt-0.5 shrink-0 text-muted-foreground hover:text-[#10b981] transition-colors">
                     <Circle size={15} />
                   </button>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium leading-snug">{t.title}</p>
                     <p
                       className="text-xs mt-0.5 font-medium"
@@ -133,8 +149,14 @@ export function HomeACP({ logHoje, sistemas, tarefas, entradas }: Props) {
                     </p>
                   </div>
                 </div>
-                <div className="ml-5 rounded-lg bg-secondary/60 px-3 py-2 text-xs text-foreground">
-                  {t.nextSessionNote}
+                <div className="px-3 pb-3 ml-5 space-y-2">
+                  <div className="rounded-lg bg-secondary/60 px-3 py-2 text-xs">{t.nextSessionNote}</div>
+                  {t.consequenceChain && (
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Cadeia de consequências</p>
+                      <div className="rounded-lg bg-secondary/40 px-2.5 py-1.5 text-xs whitespace-pre-wrap">{t.consequenceChain}</div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -151,29 +173,58 @@ export function HomeACP({ logHoje, sistemas, tarefas, entradas }: Props) {
           <p className="text-sm text-muted-foreground">Sem tarefas pendentes para o tipo de dia de hoje.</p>
         ) : (
           <div className="space-y-1.5">
-            {tarefasDoDia.map((t) => (
-              <div
-                key={t.id}
-                className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border"
-              >
-                <button
-                  onClick={() => marcarFeita(t.id)}
-                  className="shrink-0 text-muted-foreground hover:text-[#10b981] transition-colors"
-                >
-                  <Circle size={16} />
-                </button>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm">{t.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    <span style={{ color: t.system.color ?? "#94a3b8" }}>
-                      {t.system.icon} {t.system.name}
-                    </span>
-                    {t.folder ? ` · ${t.folder.name}` : ""}
-                    {t.dueDate ? ` · vence ${format(new Date(t.dueDate), "dd/MM", { locale: ptBR })}` : ""}
-                  </p>
+            {tarefasDoDia.map((t) => {
+              const expandida = expandidas.has(t.id)
+              const temDetalhes = !!(t.nextSessionNote || t.consequenceChain)
+              return (
+                <div key={t.id} className="rounded-xl bg-card border border-border overflow-hidden">
+                  <div className="flex items-center gap-3 p-3">
+                    <button
+                      onClick={() => marcarFeita(t.id)}
+                      className="shrink-0 text-muted-foreground hover:text-[#10b981] transition-colors"
+                    >
+                      <Circle size={16} />
+                    </button>
+                    <div
+                      className={`flex-1 min-w-0 ${temDetalhes ? "cursor-pointer select-none" : ""}`}
+                      onClick={() => temDetalhes && toggleExpand(t.id)}
+                    >
+                      <p className="text-sm">{t.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        <span style={{ color: t.system.color ?? "#94a3b8" }}>
+                          {t.system.icon} {t.system.name}
+                        </span>
+                        {t.folder ? ` · ${t.folder.name}` : ""}
+                        {t.dueDate ? ` · vence ${format(new Date(t.dueDate), "dd/MM", { locale: ptBR })}` : ""}
+                      </p>
+                    </div>
+                    {temDetalhes && (
+                      <ChevronDown
+                        size={13}
+                        className={`text-muted-foreground transition-transform duration-200 shrink-0 ${expandida ? "rotate-180" : ""}`}
+                        onClick={() => toggleExpand(t.id)}
+                      />
+                    )}
+                  </div>
+                  {expandida && temDetalhes && (
+                    <div className="px-3 pb-3 ml-9 space-y-2">
+                      {t.nextSessionNote && (
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Próxima sessão</p>
+                          <div className="rounded-lg bg-secondary/60 px-2.5 py-1.5 text-xs">{t.nextSessionNote}</div>
+                        </div>
+                      )}
+                      {t.consequenceChain && (
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Cadeia de consequências</p>
+                          <div className="rounded-lg bg-secondary/60 px-2.5 py-1.5 text-xs whitespace-pre-wrap">{t.consequenceChain}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

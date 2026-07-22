@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Pencil, Trash2, TrendingUp, TrendingDown, CreditCard } from "lucide-react"
 import { toast } from "sonner"
@@ -17,6 +18,7 @@ interface Entrada {
   amount: number
   description: string
   category: string | null
+  method: string | null
 }
 
 interface Resumo {
@@ -29,6 +31,12 @@ interface Resumo {
 interface Config {
   id: string
   cardLimit: number
+}
+
+const METHOD_LABELS: Record<string, string> = {
+  card: "💳 Cartão",
+  cash: "💵 Dinheiro",
+  pix:  "💸 Pix",
 }
 
 function fmt(v: number) {
@@ -48,13 +56,21 @@ function EntradaForm({
   const [amount, setAmount] = useState(String(inicial?.amount ?? ""))
   const [description, setDescription] = useState(inicial?.description ?? "")
   const [category, setCategory] = useState(inicial?.category ?? "")
+  const [method, setMethod] = useState(inicial?.method ?? "card")
   const [salvando, setSalvando] = useState(false)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!amount || !description.trim()) { toast.error("Preencha valor e descrição"); return }
     setSalvando(true)
-    await onSalvar({ date, type: tipo, amount: Number(amount), description: description.trim(), category: category || null })
+    await onSalvar({
+      date,
+      type: tipo,
+      amount: Number(amount),
+      description: description.trim(),
+      category: category || null,
+      method: tipo === "expense" ? method : null,
+    })
     setSalvando(false)
   }
 
@@ -70,6 +86,19 @@ function EntradaForm({
           <Input type="number" step="0.01" min="0" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00" className="bg-secondary border-border" />
         </div>
       </div>
+      {tipo === "expense" && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Método *</Label>
+          <Select value={method} onValueChange={v => v && setMethod(v)}>
+            <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              <SelectItem value="card">💳 Cartão</SelectItem>
+              <SelectItem value="cash">💵 Dinheiro</SelectItem>
+              <SelectItem value="pix">💸 Pix</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       <div className="space-y-1.5">
         <Label className="text-xs">Descrição *</Label>
         <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="ex: iFood, Freela..." className="bg-secondary border-border" />
@@ -152,8 +181,12 @@ export function FinancialManager() {
 
   if (!resumo) return <p className="text-sm text-muted-foreground">Carregando...</p>
 
-  const gastoCartao = resumo.entradas.filter(e => e.type === "expense").reduce((s, e) => s + e.amount, 0)
+  const gastoCartao = resumo.entradas
+    .filter(e => e.type === "expense" && e.method === "card")
+    .reduce((s, e) => s + e.amount, 0)
   const limiteCartao = config?.cardLimit ?? 0
+  const pctCartao = limiteCartao > 0 ? gastoCartao / limiteCartao : 0
+  const corBarra = pctCartao > 0.9 ? "#ef4444" : pctCartao > 0.7 ? "#f59e0b" : "#10b981"
 
   return (
     <div className="space-y-5">
@@ -200,8 +233,8 @@ export function FinancialManager() {
               <div
                 className="h-full rounded-full transition-all"
                 style={{
-                  width: `${Math.min((gastoCartao / limiteCartao) * 100, 100)}%`,
-                  background: gastoCartao / limiteCartao > 0.85 ? "#ef4444" : "#10b981",
+                  width: `${Math.min(pctCartao * 100, 100)}%`,
+                  background: corBarra,
                 }}
               />
             </div>
@@ -236,6 +269,7 @@ export function FinancialManager() {
                   <p className="text-xs text-muted-foreground">
                     {format(new Date(e.date), "dd/MM", { locale: ptBR })}
                     {e.category ? ` · ${e.category}` : ""}
+                    {e.type === "expense" && e.method ? ` · ${METHOD_LABELS[e.method] ?? e.method}` : ""}
                   </p>
                 </div>
               </div>

@@ -127,6 +127,7 @@ model FinancialEntry {
   amount      Float
   description String
   category    String?
+  method      String?
   createdAt   DateTime @default(now())
 }
 
