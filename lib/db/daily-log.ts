@@ -1,26 +1,27 @@
 import { prisma } from "@/lib/db"
 
-// Always use UTC date to avoid timezone drift on Railway (UTC) and local dev
-function dataHojeUTC(): Date {
-  const now = new Date()
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+// Usa horário de Brasília (UTC-3) para determinar o dia atual.
+// Às 21:30 Brazil ainda é o mesmo dia — UTC puro avançaria para o próximo.
+function dataHoje(): Date {
+  const brasilia = new Date(Date.now() - 3 * 60 * 60 * 1000)
+  return new Date(Date.UTC(brasilia.getUTCFullYear(), brasilia.getUTCMonth(), brasilia.getUTCDate()))
 }
 
-function proximoDiaUTC(): Date {
-  const hoje = dataHojeUTC()
+function proximoDia(): Date {
+  const hoje = dataHoje()
   return new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate() + 1))
 }
 
 export async function logDeHoje() {
   // Use gte/lt range instead of exact match — more robust with @db.Date + PrismaPg adapter
   return prisma.dailyLog.findFirst({
-    where: { date: { gte: dataHojeUTC(), lt: proximoDiaUTC() } },
+    where: { date: { gte: dataHoje(), lt: proximoDia() } },
   })
 }
 
 export async function definirTipoDia(dayType: string) {
-  const hoje = dataHojeUTC()
-  const amanha = proximoDiaUTC()
+  const hoje = dataHoje()
+  const amanha = proximoDia()
   // findFirst + update/create avoids PrismaPg @db.Date upsert-where comparison issues
   const existente = await prisma.dailyLog.findFirst({
     where: { date: { gte: hoje, lt: amanha } },
@@ -44,9 +45,8 @@ export async function atualizarLogNoite(
 }
 
 export async function historicoLog(dias = 14) {
-  const desde = new Date()
-  desde.setDate(desde.getDate() - dias)
-  desde.setHours(0, 0, 0, 0)
+  const hoje = dataHoje()
+  const desde = new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate() - dias))
   return prisma.dailyLog.findMany({
     where: { date: { gte: desde } },
     orderBy: { date: "desc" },
